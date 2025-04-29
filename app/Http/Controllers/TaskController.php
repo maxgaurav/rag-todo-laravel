@@ -13,11 +13,22 @@ class TaskController extends Controller
     {
     }
 
+    /**
+     * Returns list of all tasks saved
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
     public function index(): \Illuminate\Database\Eloquent\Collection
     {
         return $this->taskRepository->listTasks();
     }
 
+    /**
+     * Stores the task by creating its embedding
+     *
+     * @param StoreTaskRequest $storeTask
+     * @return Task
+     */
     public function store(StoreTaskRequest $storeTask): Task
     {
         return $this->taskRepository->create(
@@ -28,6 +39,8 @@ class TaskController extends Controller
     }
 
     /**
+     * Returns first two most relative matching task according to the prompt
+     *
      * @param Request $request
      * @return @return \Illuminate\Database\Eloquent\Collection<int, Task>
      */

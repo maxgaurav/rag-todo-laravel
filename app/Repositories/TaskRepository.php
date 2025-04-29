@@ -67,14 +67,16 @@ class TaskRepository
         $promptEmbedding = $this->promptService->generateEmbedding("$prompt");
         \DB::enableQueryLog();
         $matchingTaskIds = $this->taskModel->newModelQuery()
-            ->select(['id'])
-            ->addSelect([\DB::raw("(1 -(embeddings <=> '[" . implode(",", $promptEmbedding) . "]')) as similarity")])
-            ->whereRaw("(1 -(embeddings <=> ?)) > 0.7", ["[" . implode(",", $promptEmbedding) . "]"])
-            ->orderBy('similarity', 'desc')
+            ->select(['id', 'title'])
+            ->addSelect([\DB::raw("(embeddings <=> '[" . implode(",", $promptEmbedding) . "]') as similarity")])
+            ->addSelect([\DB::raw("(1 - (embeddings <=> '[" . implode(",", $promptEmbedding) . "]')) * 100 as percentageSimilarity")])
+//            ->whereRaw("(embeddings <=> ?) <= 0.25", ["[" . implode(",", $promptEmbedding) . "]"])
+            ->whereRaw("(1 - (embeddings <=> ?)) >= 0.75", ["[" . implode(",", $promptEmbedding) . "]"])
+            ->orderBy('similarity')
             ->limit(2)
             ->get();
 
-//        dd($matchingTaskIds->toArray(), \DB::getRawQueryLog());
+        dd($matchingTaskIds->toArray(), \DB::getRawQueryLog());
 
         return $this->taskModel->newModelQuery()->whereIn('id', $matchingTaskIds->map(fn ($item) => $item["id"]))->get();
     }
