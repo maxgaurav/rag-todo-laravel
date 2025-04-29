@@ -9,32 +9,73 @@ use Carbon\Carbon;
 class TaskRepository
 {
     public function __construct(
-        public Task $taskModel,
+        public Task                              $taskModel,
         private readonly PromptManagementService $promptService
     )
     {
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, Task>
+     */
+    public function listTasks(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->taskModel->newModelQuery()->get();
+    }
+
+    /**
      * Creates a new task
      *
-     * @param string $task
+     * @param string $title
      * @param Carbon|null $completedOn
      * @return Task
      */
-    public function create(string $task, string $description, Carbon $completedOn = null): Task
+    public function create(string $title, string $description, ?Carbon $completedOn = null): Task
     {
-        return $this->taskModel->newModelQuery()->create([
-            'task' => $task,
+
+        $task = new Task;
+        $task->fill([
+            'title' => $title,
             'description' => $description,
-            'embedding' => $this->promptService->generateEmbedding($task),
+            'embeddings' => $this->promptService->generateEmbedding($this->generateEmbeddingText($title, $description)),
             'completed_on' => $completedOn ?? null
         ]);
+
+        $task->save();
+
+        return $task;
     }
 
+    /**
+     * Generates embedding text
+     *
+     * @param string $task
+     * @param string $description
+     * @return string
+     */
     protected function generateEmbeddingText(string $task, string $description): string
     {
-        return "Task Title: $task
-        Description: $description";
+        return "Following is a task\\nTitle:$task\\nDescription:$description";
+    }
+
+    /**
+     * @param $prompt
+     * @return \Illuminate\Database\Eloquent\Collection<int, Task>
+     */
+    public function filterRag(string $prompt): \Illuminate\Database\Eloquent\Collection
+    {
+        $promptEmbedding = $this->promptService->generateEmbedding("$prompt");
+        \DB::enableQueryLog();
+        $matchingTaskIds = $this->taskModel->newModelQuery()
+            ->select(['id'])
+            ->addSelect([\DB::raw("(1 -(embeddings <=> '[" . implode(",", $promptEmbedding) . "]')) as similarity")])
+            ->whereRaw("(1 -(embeddings <=> ?)) > 0.7", ["[" . implode(",", $promptEmbedding) . "]"])
+            ->orderBy('similarity', 'desc')
+            ->limit(2)
+            ->get();
+
+//        dd($matchingTaskIds->toArray(), \DB::getRawQueryLog());
+
+        return $this->taskModel->newModelQuery()->whereIn('id', $matchingTaskIds->map(fn ($item) => $item["id"]))->get();
     }
 }

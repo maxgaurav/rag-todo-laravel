@@ -16,8 +16,8 @@ class PromptManagementService
     public function generateEmbedding(string $string): array
     {
 
-        $result = $this->httpClient->post('http://localhost:11434/api/embed', [
-            "model" => "tinyllama:1.1b",
+        $result = Http::post('http://localhost:11434/api/embed', [
+            "model" => "qwen3:1.7b",
             "input" => $string,
             "keep_alive" => "60m"
         ]);
@@ -27,5 +27,22 @@ class PromptManagementService
         }
 
         return $result->json()['embeddings'][0];
+    }
+
+    public function prompt(string $prompt): string
+    {
+        $result = Http::post("http://localhost:11434/api/generate", [
+            "model" => "qwen3:1.7b",
+            "prompt" => $prompt,
+            "keep_alive" => "60m",
+            "stream" => false,
+            "format" => "json"
+        ]);
+
+        if (!$result->successful()) {
+            $result->throw();
+        }
+
+        return $result->json()['response'];
     }
 }
