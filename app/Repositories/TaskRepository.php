@@ -76,7 +76,7 @@ class TaskRepository
             ->limit(2)
             ->get();
 
-        dd($matchingTaskIds->toArray(), \DB::getRawQueryLog());
+//        dd($matchingTaskIds->toArray(), \DB::getRawQueryLog());
 
         return $this->taskModel->newModelQuery()->whereIn('id', $matchingTaskIds->map(fn ($item) => $item["id"]))->get();
     }
